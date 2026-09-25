@@ -13,6 +13,14 @@ You are triaging my Gmail inbox. Do the following:
    pageSize: 50
    ```
 
+   If this call errors — the tool isn't available (Gmail connector not
+   configured), or the error says something like "needs you to sign in
+   again" / re-authenticate — that's a failure, not an empty inbox. This
+   run's `status` is `error`, `error` names the actual problem (e.g. "Gmail
+   MCP connector needs re-authentication — run /mcp"), skip straight to
+   step 5 with an empty `items` array, and say the real problem plainly in
+   your reply instead of implying nothing needs attention.
+
 2. Apply judgment on what's left. Gmail's categories catch most bulk mail,
    but promotional/automated noise still lands in Primary or Updates
    (newsletters, "you have new followers"-style pings, drip marketing,
@@ -72,9 +80,10 @@ You are triaging my Gmail inbox. Do the following:
    must include EVERY surviving item in full — both the ones shown in full
    in step 4 and the ones only summarized in the stale group — never
    truncate or omit items from the JSON just because they were compressed
-   in the prose report. Do not deviate from the schema's field names,
-   types, or enum values.
+   in the prose report. `status` / `error` → `"ok"` / `null` unless step 1
+   hit a failure mode, per that step. Do not deviate from the schema's
+   field names, types, or enum values.
 
-If Gmail isn't authenticated or the search returns nothing, say so plainly
-instead of guessing, and still emit the JSON block with an empty `items`
-array.
+If the search genuinely returns nothing (no error, just no unread mail
+worth surfacing), say so plainly — that's `status: "ok"` with an empty
+`items` array, not an error.

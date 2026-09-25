@@ -4,7 +4,7 @@
   "title": "Vör connector report",
   "description": "Canonical JSON contract every vor connector command (gh-overview, gmail-overview, calendar-overview, slack-overview) must emit as a trailing fenced ```json block in its final output, so the dashboard orchestrator can parse it without per-connector special-casing.",
   "type": "object",
-  "required": ["source", "generated_at", "items"],
+  "required": ["source", "generated_at", "status", "error", "items"],
   "additionalProperties": false,
   "properties": {
     "source": {
@@ -16,6 +16,15 @@
       "type": "string",
       "format": "date-time",
       "description": "ISO 8601 timestamp of when this connector's command ran."
+    },
+    "status": {
+      "type": "string",
+      "description": "Whether this connector actually ran successfully — distinct from whether it found anything. `ok`: ran fine, `items` reflects reality (possibly empty). `error`: couldn't run at all (not installed, not authenticated, connector needs re-auth) — `items` is empty BECAUSE it failed, not because there's nothing there. `partial`: ran, but one sub-check within it failed — `items` has whatever did succeed.",
+      "enum": ["ok", "partial", "error"]
+    },
+    "error": {
+      "type": ["string", "null"],
+      "description": "Short human-readable reason when status is `partial` or `error` (e.g. \"gh isn't authenticated — run gh auth login\"). Null when status is `ok`."
     },
     "items": {
       "type": "array",

@@ -7,6 +7,19 @@ You are triaging GitHub for me. Do the following:
 
 1. Get my username: `gh api user -q .login`
 
+   Before going further, check for these specific failure modes rather
+   than treating any error the same as "no results":
+   - `gh` not found on PATH → this run's `status` is `error`, `error` is
+     `"gh CLI isn't installed"`
+   - `gh` installed but this command (or `gh auth status`) fails with an
+     auth error → `status` is `error`, `error` is `"gh isn't authenticated
+     — run gh auth login"`
+
+   If either happens, skip straight to step 7 with an empty `items` array
+   and the `status`/`error` set accordingly — don't attempt step 2. Say
+   the real problem plainly in your reply too (which CLI/auth issue, and
+   the fix), not a vague "nothing found."
+
 2. Fetch open items I'm involved in:
    ```
    gh search issues --involves=@me --state=open --json number,title,repository,url,updatedAt,labels,body,author --limit 50
@@ -16,6 +29,11 @@ You are triaging GitHub for me. Do the following:
    If per-PR detail (reviewDecision, statusCheckRollup, reviewRequests, etc.) needs fetching separately, don't loop `gh pr view`/`gh api` once per PR in a shell `while`/`for` loop — that has been observed to hang indefinitely (each network call inside the loop can stall). Instead batch everything into a single `gh api graphql` call using aliased fields per PR (e.g. `pr0: repository(owner:..., name:...) { pullRequest(number:...) { ... } }`, one alias per item).
 
    If a loop over items is unavoidable, first check which shell is running (e.g. `echo $ZSH_VERSION $BASH_VERSION` or `ps -p $$ -o comm=`) before using shell-specific builtins — `mapfile`/`readarray` are bash-only and fail silently or hang under zsh. Prefer a portable `while IFS= read -r line; do ... done < file` loop instead, since this repo's shell may be zsh (see gitStatus context / `Shell: zsh`).
+
+   If one of the two searches errors (rate limit, network, etc.) but the
+   other succeeds, don't discard the good half: proceed with whichever
+   items you got, and this run's `status` is `partial` with `error`
+   naming which search failed and why.
 
 3. For each item, work out ONE category, which doubles as its `label`, and
    maps to a normalized `urgency` for the JSON output in step 7:
@@ -49,6 +67,8 @@ You are triaging GitHub for me. Do the following:
    full in step 4 and the ones only summarized in the stale group in step
    5 — never truncate or omit items from the JSON just because they were
    compressed in the prose report. Map fields as follows:
+   - `status` / `error` → `"ok"` / `null` unless step 1 or step 2 hit a
+     failure mode, per those steps
    - `id` → `"<repo>#<number>"`
    - `urgency` / `label` → from the mapping in step 3
    - `title` → the item's title
@@ -60,4 +80,6 @@ You are triaging GitHub for me. Do the following:
 
    Do not deviate from the schema's field names, types, or enum values.
 
-If `gh` isn't authenticated or a search returns nothing, say so plainly instead of guessing, and still emit the JSON block with an empty `items` array.
+If a search genuinely returns nothing (no error, just an empty inbox of
+work), say so plainly — that's `status: "ok"` with an empty `items` array,
+not an error.
