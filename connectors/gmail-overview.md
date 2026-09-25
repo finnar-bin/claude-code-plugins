@@ -3,15 +3,7 @@ description: Surface genuinely important, non-marketing emails and how long they
 allowed-tools: mcp__claude_ai_Gmail__search_threads, mcp__claude_ai_Gmail__get_thread
 ---
 
-You are triaging my Gmail inbox.
-
-Check `$ARGUMENTS`: if it is exactly `json`, you're being invoked by the
-orchestrator — do steps 1–3 and 5 only, skip the human-readable report in
-step 4 entirely, emit nothing but the JSON block. Otherwise (no argument,
-or anything else), you're being run directly — do steps 1–4 as normal and
-skip step 5 entirely (no JSON block).
-
-Do the following:
+You are triaging my Gmail inbox. Do the following:
 
 1. Search unread inbox mail from the last 30 days, letting Gmail's own
    categorization do the first pass of noise-filtering:
@@ -26,8 +18,7 @@ Do the following:
    again" / re-authenticate — that's a failure, not an empty inbox. This
    run's `status` is `error`, `error` names the actual problem (e.g. "Gmail
    MCP connector needs re-authentication — run /mcp"), skip straight to
-   step 5 with an empty `items` array, and say the real problem plainly in
-   your reply instead of implying nothing needs attention.
+   step 4 with an empty `items` array.
 
 2. Apply judgment on what's left. Gmail's categories catch most bulk mail,
    but promotional/automated noise still lands in Primary or Updates
@@ -68,31 +59,12 @@ Do the following:
      connector doesn't yet track sent mail awaiting reply or resolved
      threads.)
 
-4. Render the human-readable report:
-   - **≤ 7 days unattended** — show in full. It is important that you
-     follow this exact format per item and not deviate:
-     `| From | Subject | Received | Days unattended | What it's about |`
-   - **7+ days unattended** — stale, summarize only, grouped by sender:
-     `- sender — N stale item(s), oldest is N days unattended`
-     Sort by most days-unattended first.
-   - Skip either section if it's empty. Don't restate raw search results.
-     Don't pad with commentary.
-   - Ask which stale sender (if any) they'd like full detail on. If they
-     name one, show that sender's items in the exact table format above.
-   - End with: "Tell me a number or name a sender and I'll dig in — I can
-     open the thread, summarize it, or draft a reply."
-
-5. After the human-readable report, append a single fenced ```json code
-   block conforming EXACTLY to the schema at
-   `schema/connector-report.schema.json` (source: `"gmail"`). This block
-   must include EVERY surviving item in full — both the ones shown in full
-   in step 4 and the ones only summarized in the stale group — never
-   truncate or omit items from the JSON just because they were compressed
-   in the prose report. `status` / `error` → `"ok"` / `null` unless step 1
-   hit a failure mode, per that step. Do not deviate from the schema's
-   field names, types, or enum values.
+4. Emit a single fenced ```json code block conforming EXACTLY to the
+   schema at `schema/connector-report.schema.json` (source: `"gmail"`).
+   Include every surviving item in full. Do not deviate from the schema's
+   field names, types, or enum values. Return ONLY this JSON block — no
+   other commentary.
 
 If the search genuinely returns nothing (no error, just no unread mail
-worth surfacing), say so plainly in whichever form applies — a plain
-sentence in the human-readable report, or `status: "ok"` with an empty
-`items` array in JSON mode — not an error.
+worth surfacing), that's `status: "ok"` with an empty `items` array, not
+an error.

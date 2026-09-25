@@ -1,4 +1,5 @@
 ---
+name: vor
 description: Unified dashboard across GitHub, Gmail, Calendar, and Slack — republishes the same artifact in place every run
 allowed-tools: Read, Write, Bash, Agent, Artifact
 ---
@@ -6,25 +7,25 @@ allowed-tools: Read, Write, Bash, Agent, Artifact
 You are building my unified daily dashboard from four sources: GitHub,
 Gmail, Calendar, and Slack.
 
-This command depends on the Agent tool (to spawn subagents) and the
+This skill depends on the Agent tool (to spawn subagents) and the
 Artifact tool (to publish the page) being available in this environment —
 it will not work in a plain Claude Code CLI install without them.
 
 Do the following:
 
 1. Gather each source in parallel, out of your own context:
-   - Read the full contents of `commands/gh-overview.md`,
-     `commands/gmail-overview.md`, `commands/calendar-overview.md`, and
-     `commands/slack-overview.md`.
+   - Read the full contents of `connectors/gh-overview.md`,
+     `connectors/gmail-overview.md`, `connectors/calendar-overview.md`,
+     and `connectors/slack-overview.md` (paths relative to this file's
+     own location, not the caller's cwd).
    - In a single message, spawn one subagent per file (four total, all in
      parallel) using the Agent tool, `subagent_type` omitted or
      `"general-purpose"` so each has full tool access (Bash for the
      GitHub one, the relevant MCP connector for the other three). Give
-     each subagent that file's full instructions as its prompt, with
-     `$ARGUMENTS` resolved to the literal string `json`, plus an explicit
-     instruction: "Return ONLY the final fenced ```json code block
-     described in these instructions — no other commentary, no
-     human-readable report."
+     each subagent that file's full instructions as its prompt verbatim —
+     each one already ends by emitting a single fenced ```json code block
+     and nothing else, so no extra instruction is needed beyond handing
+     over the file's contents.
 
 2. From each subagent's response, extract the fenced ```json block and
    parse it. If a subagent's response doesn't contain a valid block

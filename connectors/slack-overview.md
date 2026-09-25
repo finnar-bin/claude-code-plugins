@@ -3,15 +3,7 @@ description: Surface Slack mentions/DMs needing a reply and my own messages awai
 allowed-tools: mcp__claude_ai_Slack__slack_search_public_and_private, mcp__claude_ai_Slack__slack_read_thread, mcp__claude_ai_Slack__slack_read_channel
 ---
 
-You are triaging my Slack for me.
-
-Check `$ARGUMENTS`: if it is exactly `json`, you're being invoked by the
-orchestrator — do steps 1–5 and 7 only, skip the human-readable report in
-step 6 entirely, emit nothing but the JSON block. Otherwise (no argument,
-or anything else), you're being run directly — do steps 1–6 as normal and
-skip step 7 entirely (no JSON block).
-
-Do the following:
+You are triaging my Slack for me. Do the following:
 
 1. Find my own Slack user ID from the `slack_search_public_and_private`
    tool's own description (it states something like "Current logged in
@@ -20,8 +12,8 @@ Do the following:
 
    If the Slack tool isn't available or a call errors (connector not
    configured, needs re-auth), this run's `status` is `error`, `error`
-   names the actual problem, skip straight to step 7 with an empty
-   `items` array, and say the real problem plainly in your reply.
+   names the actual problem, skip straight to step 6 with an empty
+   `items` array.
 
 2. Run narrow, cheap first-pass searches covering the last 7 days — use
    `response_format: "concise"` and `include_context: false` on both to
@@ -71,25 +63,11 @@ Do the following:
    - `urgency` → `attention` for Needs-a-reply items, `waiting` for
      Waiting-on-a-reply items
 
-6. Print a terse readout, two tables, don't deviate, each sorted
-   oldest (most days unattended) first:
-   `## 💬 Needs a reply`
-   `| From | Where | Sent | Days unattended | What they need |`
-   `## 📤 Waiting on a reply`
-   `| To | Where | Sent | Days unattended | What you're waiting on |`
-   Skip either section entirely if it's empty (say so in one line
-   instead). Don't restate raw search results. Don't pad with commentary.
-   End with: "Tell me a number and I'll dig in — I can open the thread,
-   summarize it, draft a reply, or send a nudge."
+6. Emit a single fenced ```json code block conforming EXACTLY to the
+   schema at `schema/connector-report.schema.json` (source: `"slack"`).
+   Include every surviving item from both buckets in full. Do not
+   deviate from the schema's field names, types, or enum values. Return
+   ONLY this JSON block — no other commentary.
 
-7. After the human-readable report, append a single fenced ```json code
-   block conforming EXACTLY to the schema at
-   `schema/connector-report.schema.json` (source: `"slack"`). Include
-   every surviving item from both sections in full. `status` / `error` →
-   `"ok"` / `null` unless step 1 hit a failure mode. Do not deviate from
-   the schema's field names, types, or enum values.
-
-If nothing survives in either bucket (no error, just a quiet week), say
-so plainly in whichever form applies — a plain sentence in the
-human-readable report, or `status: "ok"` with an empty `items` array in
-JSON mode — not an error.
+If nothing survives in either bucket (no error, just a quiet week),
+that's `status: "ok"` with an empty `items` array, not an error.
