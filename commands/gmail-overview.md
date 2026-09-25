@@ -3,7 +3,15 @@ description: Surface genuinely important, non-marketing emails and how long they
 allowed-tools: mcp__claude_ai_Gmail__search_threads, mcp__claude_ai_Gmail__get_thread
 ---
 
-You are triaging my Gmail inbox. Do the following:
+You are triaging my Gmail inbox.
+
+Check `$ARGUMENTS`: if it is exactly `json`, you're being invoked by the
+orchestrator — do steps 1–3 and 5 only, skip the human-readable report in
+step 4 entirely, emit nothing but the JSON block. Otherwise (no argument,
+or anything else), you're being run directly — do steps 1–4 as normal and
+skip step 5 entirely (no JSON block).
+
+Do the following:
 
 1. Search unread inbox mail from the last 30 days, letting Gmail's own
    categorization do the first pass of noise-filtering:
@@ -85,5 +93,6 @@ You are triaging my Gmail inbox. Do the following:
    field names, types, or enum values.
 
 If the search genuinely returns nothing (no error, just no unread mail
-worth surfacing), say so plainly — that's `status: "ok"` with an empty
-`items` array, not an error.
+worth surfacing), say so plainly in whichever form applies — a plain
+sentence in the human-readable report, or `status: "ok"` with an empty
+`items` array in JSON mode — not an error.

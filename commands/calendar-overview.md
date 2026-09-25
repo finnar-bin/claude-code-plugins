@@ -3,7 +3,15 @@ description: What's happening today and what's coming up tomorrow
 allowed-tools: mcp__claude_ai_Google_Calendar__list_events
 ---
 
-You are giving me a quick readout of my calendar. Do the following:
+You are giving me a quick readout of my calendar.
+
+Check `$ARGUMENTS`: if it is exactly `json`, you're being invoked by the
+orchestrator — do steps 1–3 and 5 only, skip the human-readable report in
+step 4 entirely, emit nothing but the JSON block. Otherwise (no argument,
+or anything else), you're being run directly — do steps 1–4 as normal and
+skip step 5 entirely (no JSON block).
+
+Do the following:
 
 1. Determine the local timezone (e.g. `date +%Z` or
    `timedatectl show --property=Timezone`) — needed to bound "today" and
@@ -63,5 +71,6 @@ You are giving me a quick readout of my calendar. Do the following:
    deviate from the schema's field names, types, or enum values.
 
 If there's genuinely nothing on the calendar for either day (no error,
-just an open schedule), say so plainly — that's `status: "ok"` with an
-empty `items` array, not an error.
+just an open schedule), say so plainly in whichever form applies — a
+plain sentence in the human-readable report, or `status: "ok"` with an
+empty `items` array in JSON mode — not an error.

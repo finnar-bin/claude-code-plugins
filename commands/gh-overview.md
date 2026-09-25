@@ -3,7 +3,15 @@ description: Fetch and triage GitHub issues/PRs involving me across all repos
 allowed-tools: Bash(gh:*)
 ---
 
-You are triaging GitHub for me. Do the following:
+You are triaging GitHub for me.
+
+Check `$ARGUMENTS`: if it is exactly `json`, you're being invoked by the
+orchestrator — do steps 1–3 and 7 only, skip the human-readable report in
+steps 4–6 entirely, emit nothing but the JSON block. Otherwise (no
+argument, or anything else), you're being run directly — do steps 1–6 as
+normal and skip step 7 entirely (no JSON block).
+
+Do the following:
 
 1. Get my username: `gh api user -q .login`
 
@@ -81,5 +89,6 @@ You are triaging GitHub for me. Do the following:
    Do not deviate from the schema's field names, types, or enum values.
 
 If a search genuinely returns nothing (no error, just an empty inbox of
-work), say so plainly — that's `status: "ok"` with an empty `items` array,
-not an error.
+work), say so plainly in whichever form applies — a plain sentence in the
+human-readable report, or `status: "ok"` with an empty `items` array in
+JSON mode — not an error.

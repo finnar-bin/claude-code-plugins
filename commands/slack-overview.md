@@ -3,7 +3,15 @@ description: Surface Slack mentions/DMs needing a reply and my own messages awai
 allowed-tools: mcp__claude_ai_Slack__slack_search_public_and_private, mcp__claude_ai_Slack__slack_read_thread, mcp__claude_ai_Slack__slack_read_channel
 ---
 
-You are triaging my Slack for me. Do the following:
+You are triaging my Slack for me.
+
+Check `$ARGUMENTS`: if it is exactly `json`, you're being invoked by the
+orchestrator — do steps 1–5 and 7 only, skip the human-readable report in
+step 6 entirely, emit nothing but the JSON block. Otherwise (no argument,
+or anything else), you're being run directly — do steps 1–6 as normal and
+skip step 7 entirely (no JSON block).
+
+Do the following:
 
 1. Find my own Slack user ID from the `slack_search_public_and_private`
    tool's own description (it states something like "Current logged in
@@ -82,5 +90,6 @@ You are triaging my Slack for me. Do the following:
    the schema's field names, types, or enum values.
 
 If nothing survives in either bucket (no error, just a quiet week), say
-so plainly — that's `status: "ok"` with an empty `items` array, not an
-error.
+so plainly in whichever form applies — a plain sentence in the
+human-readable report, or `status: "ok"` with an empty `items` array in
+JSON mode — not an error.
