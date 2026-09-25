@@ -1,0 +1,8 @@
+{
+  "name": "vor",
+  "description": "Personal daily overview: triage commands across GitHub, Gmail, Calendar, and Slack",
+  "version": "0.1.0",
+  "author": {
+    "name": "Nar Cuenca"
+  }
+}
