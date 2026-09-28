@@ -9,6 +9,11 @@
       "name": "vor",
       "source": "./plugins/vor",
       "description": "Unified daily dashboard across GitHub, Gmail, Calendar, and Slack, invoked as /vor"
+    },
+    {
+      "name": "otto",
+      "source": "./plugins/otto",
+      "description": "Take a GitHub issue from triage through implementation, tests, and a capped QA/review loop, invoked as a Workflow"
     }
   ]
 }

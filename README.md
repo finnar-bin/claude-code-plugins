@@ -23,6 +23,7 @@ Then install whichever plugin you want:
 
 ```
 /plugin install vor@finnar-bin-plugins
+/plugin install otto@finnar-bin-plugins
 ```
 
 To pick up updates later, either enable auto-update for the marketplace
@@ -51,3 +52,21 @@ run rather than creating a new one each time.
 Requires the `Agent` and `Artifact` tools, plus MCP connectors for
 Gmail, Google Calendar, and Slack, and the `gh` CLI (authenticated) for
 GitHub. See [`plugins/vor/SKILL.md`](plugins/vor/SKILL.md) for details.
+
+### otto
+
+Takes a GitHub issue from triage through implementation, tests, and a
+capped QA/review loop, run as a Workflow against your current local
+checkout. Triages the issue (commenting and stopping if it's missing the
+information needed to start), implements a first pass, ensures test
+coverage using whatever testing system the repo already has, then loops
+static checks + QA + code review (capped at `maxRounds`, default 3)
+until clean or it flags the issue for a human. Never commits, pushes, or
+opens a PR itself — every change is left uncommitted in the working tree
+for review.
+
+Takes `args.issueNumber` (required) and `args.maxRounds` (optional).
+Requires the `Workflow` and `Agent` tools, the `gh` CLI (authenticated),
+and a clean git working tree in a repo with the target issue. See
+[`plugins/otto/workflows/otto.js`](plugins/otto/workflows/otto.js) for
+details.
