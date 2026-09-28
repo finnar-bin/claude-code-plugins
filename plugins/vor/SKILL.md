@@ -45,8 +45,8 @@ Do the following:
    - For each of `github`, `gmail`, `slack` independently: group that
      source's own `items` by `urgency` into four buckets (`attention`,
      `waiting`, `fyi`, `resolved`), dropping any bucket that's empty for
-     that source. Within each bucket, sort by `age_days` descending
-     (oldest/most overdue first). Each source keeps its own bucket set —
+     that source. Within each bucket, sort by `age_days` ascending
+     (newest first). Each source keeps its own bucket set —
      nothing is merged across sources anymore; that's what the tabs are
      for.
    - Separately, collect every source (all four) whose `status` isn't
@@ -102,16 +102,27 @@ is persistent and stays on screen no matter which tab is active):
     `morning`'s (name what's distinct about the day if something is,
     otherwise name its shape — never both).
   - One SVG terrain strip (~840×140, full band width): a single
-    unbroken stroke, one dot per today's event placed along it by
-    time-of-day (left edge 00:00, right edge 24:00), filled ink
-    `#2E2C27` and sized by rough weight (a plain "Meeting"/"Focus time"
-    gets a small dot, anything I organize or that's flagged important
-    gets a larger one). An unanswered RSVP (`urgency: attention`)
-    renders hollow/grey `#B4B3A8` instead of filled, since it isn't
-    confirmed yet. The connector doesn't carry event duration, so skip
-    overlap detection entirely — if two dots land on the same point,
-    nudge them apart slightly rather than stacking or inventing a
-    duration.
+    unbroken stroke drawn as actual terrain, not a straight rule —
+    elevation at each point follows how packed that stretch of the day
+    is, the same elevation-follows-load logic as `morning`'s Visual
+    anchor (overlapping/back-to-back events raise a hill, gaps read as
+    valleys, weight from each event's dot-size feeds the local load). A
+    day with little on it flattens to still water — never invent hills
+    the schedule doesn't back; a single light event should barely
+    disturb the line, only real density should rise. One dot per
+    today's event placed along the stroke by time-of-day (left edge
+    00:00, right edge 24:00), filled ink `#2E2C27` and sized by rough
+    weight (a plain "Meeting"/"Focus time" gets a small dot, anything I
+    organize or that's flagged important gets a larger one). An
+    unanswered RSVP (`urgency: attention`) renders hollow/grey `#B4B3A8`
+    instead of filled, since it isn't confirmed yet. The connector
+    doesn't carry event duration, so skip overlap detection entirely —
+    if two dots land on the same point, nudge them apart slightly
+    rather than stacking or inventing a duration. Each dot carries a
+    native SVG `<title>` (the event's title) as a hover tooltip, and is
+    wrapped in a link to the event's calendar `url` when one exists —
+    a deliberate deviation from `morning`, which has no hover
+    affordances anywhere on its page.
   - Three left-aligned columns under the drawing splitting today into
     morning / afternoon / evening (like `morning`'s acts), faint
     hairline dividers between them: bold time range, then one sentence
@@ -135,11 +146,16 @@ is persistent and stays on screen no matter which tab is active):
   render.
 - Each tab's own body: one section per non-empty urgency bucket for
   that source alone, bg background, hairline divider between sections.
-  Heading + a real HTML table (not markdown): `Label | Title | From |
-  Age | What it needs` — no `Source` column now that the tab itself
-  says which source it is — one row per item, title cell linked to
-  `url` when present. Same headings as before, skip any bucket empty
-  for that source:
+  Heading + a real HTML table (not markdown): `Title | From | Age |
+  What it needs` — no `Source` column now that the tab itself says
+  which source it is, and no `Label` column either — it's redundant
+  once items are already grouped under their bucket heading. GitHub's
+  tab specifically replaces that column with `Repo` (the repo portion
+  of the item's `id`, e.g. `zesty-io/manager-ui` from
+  `zesty-io/manager-ui#4327`), since with items spanning many repos
+  that's more useful there than the label was. One row per item, title
+  cell linked to `url` when present. Same headings as before, skip any
+  bucket empty for that source:
   - `## 🔴 Needs attention` (`attention`)
   - `## 🟡 Waiting on others` (`waiting`)
   - `## ⚪ FYI` (`fyi`)
