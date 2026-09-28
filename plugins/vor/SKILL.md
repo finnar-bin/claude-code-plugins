@@ -35,19 +35,22 @@ Do the following:
    partial data.
 
 3. Merge:
-   - For every item in every source's `items` array, tag it with that
-     source's own `source` value — the item objects themselves don't
-     carry `source`, only the envelope does.
-   - Group all tagged items by `urgency` into four buckets: `attention`,
-     `waiting`, `fyi`, `resolved`. Drop any bucket that ends up empty
-     across all four sources.
-   - Within each bucket, sort by `age_days` descending (oldest/most
-     overdue first). Note `calendar` uses `age_days` inverted (days
-     *until*, not days overdue) — its values will naturally be small
-     (0–1) and sort toward the bottom of a mixed bucket, which is fine;
-     don't special-case it.
-   - Separately, collect every source whose `status` isn't `"ok"` —
-     keep its `source` and `error` for the health strip below.
+   - Keep `calendar`'s items separate from the other three — they drive
+     the persistent top band, not a tab. Split its items into `today`
+     (`age_days` is `0`) and `tomorrow` (`age_days` is `1`, remember this
+     connector inverts `age_days` to mean "days until"); within `today`,
+     pull out any item whose `urgency` is `attention` (an unanswered
+     RSVP) into a short "needs a response" list — everything else in
+     `today` feeds the terrain drawing.
+   - For each of `github`, `gmail`, `slack` independently: group that
+     source's own `items` by `urgency` into four buckets (`attention`,
+     `waiting`, `fyi`, `resolved`), dropping any bucket that's empty for
+     that source. Within each bucket, sort by `age_days` descending
+     (oldest/most overdue first). Each source keeps its own bucket set —
+     nothing is merged across sources anymore; that's what the tabs are
+     for.
+   - Separately, collect every source (all four) whose `status` isn't
+     `"ok"` — keep its `source` and `error` for the health strip below.
 
 4. Get the current UTC timestamp (`date -u +%Y-%m-%dT%H:%M:%SZ`) to use
    as this run's `generated_at`.
@@ -67,42 +70,90 @@ Do the following:
 
 ## Design
 
-Reuse `morning`'s design tokens, not its layout — this is a denser,
-tabular dashboard, not a 30-second glance.
+Reuse `morning`'s design tokens everywhere, and its Visual anchor
+treatment specifically for the persistent Calendar band. The rest —
+Gmail, Slack, GitHub, each behind its own tab — stays a denser, tabular
+view, not a 30-second glance.
 
 **Tokens** (same as `morning`): bg `#FCFCFB` · wash `#F9F9F7` · ink
 `#2E2C27` · ink-soft `#6B6A63` · ink-grey `#B4B3A8` · hairline `#E4E3DC` ·
-line `#E1E1DF` · clay `#C6613F` (hover `#AE5133`). Fraunces for the page
-headline only — embed this repo's own `assets/fonts/fraunces-latin-600-normal.woff2`
-as a base64 `@font-face` data URI (never a Google Fonts link or CDN
-reference; if this command is ever run from outside this repo's
-directory, resolve the font path relative to wherever this file itself
-lives, not the caller's cwd). Everything else system sans
-(`-apple-system, "Segoe UI", sans-serif`).
+line `#E1E1DF` · clay `#C6613F` (hover `#AE5133`). Fraunces for the
+Calendar band's headline only — embed this repo's own
+`assets/fonts/fraunces-latin-600-normal.woff2` as a base64 `@font-face`
+data URI (never a Google Fonts link or CDN reference; if this command is
+ever run from outside this repo's directory, resolve the font path
+relative to wherever this file itself lives, not the caller's cwd).
+Everything else system sans (`-apple-system, "Segoe UI", sans-serif`).
 
-**Layout**:
-- One top band, wash background: a line reading "Vör · generated
-  <friendly local timestamp>", then — only if any source isn't `ok` —
-  one clay-colored line per failing source (e.g. "⚠️ Gmail — needs
-  re-authentication"). Render nothing here if every source is `ok`.
-- One section per non-empty urgency bucket, bg background, hairline
-  divider between sections. Heading + a real HTML table (not markdown):
-  `Source | Label | Title | From | Age | What it needs`, one row per
-  item, title cell linked to `url` when present. Headings, skip any
-  bucket with nothing in it:
+**Layout** (top to bottom, in this order — everything above the tab bar
+is persistent and stays on screen no matter which tab is active):
+
+- Slim top strip, wash background: a line reading "Vör · generated
+  <friendly local timestamp>", then — only if any of the four sources
+  isn't `ok` — one clay-colored line per failing source (e.g. "⚠️ Gmail
+  — needs re-authentication"). Render nothing here if every source is
+  `ok`.
+- Persistent Calendar band, directly below the strip, styled like
+  `morning`'s Visual anchor:
+  - Day-date line (small, ink-soft): full weekday + date.
+  - Classify today from its event count/density alone — HEAVY (≥5
+    events, or a run of 3+ back-to-back) · NORMAL · OPEN (≤1 event) —
+    and write one serif headline line in that register, same voice as
+    `morning`'s (name what's distinct about the day if something is,
+    otherwise name its shape — never both).
+  - One SVG terrain strip (~840×140, full band width): a single
+    unbroken stroke, one dot per today's event placed along it by
+    time-of-day (left edge 00:00, right edge 24:00), filled ink
+    `#2E2C27` and sized by rough weight (a plain "Meeting"/"Focus time"
+    gets a small dot, anything I organize or that's flagged important
+    gets a larger one). An unanswered RSVP (`urgency: attention`)
+    renders hollow/grey `#B4B3A8` instead of filled, since it isn't
+    confirmed yet. The connector doesn't carry event duration, so skip
+    overlap detection entirely — if two dots land on the same point,
+    nudge them apart slightly rather than stacking or inventing a
+    duration.
+  - Three left-aligned columns under the drawing splitting today into
+    morning / afternoon / evening (like `morning`'s acts), faint
+    hairline dividers between them: bold time range, then one sentence
+    naming what's actually there, earned from the data — never padded
+    on a quiet stretch.
+  - If today has any unanswered RSVP, one compact list under the
+    columns headed "Needs a response": bold linked title, one sentence
+    (who, when, that it's unanswered). Fold in anything from tomorrow
+    worth flagging the same way (say "tomorrow" instead of a time).
+    Render nothing here if there's nothing to answer.
+  - If the calendar connector itself errored, this band collapses to
+    just its day-date line — no drawing, no columns, no RSVP list (the
+    top strip above already carries the error line).
+- Tab bar, directly below the Calendar band: three tabs, in this fixed
+  order — Gmail, Slack, GitHub. Plain CSS/JS (radio inputs, or a few
+  lines of vanilla JS toggling `hidden`/`aria-selected`), no framework.
+  Default active tab: the first of the three (in that order) that has
+  any `attention`-bucket items, or Gmail if none do. Remember the
+  viewer's last-selected tab in `localStorage`, wrapped in try/catch —
+  a per-viewer convenience only, never required for a correct first
+  render.
+- Each tab's own body: one section per non-empty urgency bucket for
+  that source alone, bg background, hairline divider between sections.
+  Heading + a real HTML table (not markdown): `Label | Title | From |
+  Age | What it needs` — no `Source` column now that the tab itself
+  says which source it is — one row per item, title cell linked to
+  `url` when present. Same headings as before, skip any bucket empty
+  for that source:
   - `## 🔴 Needs attention` (`attention`)
   - `## 🟡 Waiting on others` (`waiting`)
   - `## ⚪ FYI` (`fyi`)
   - `## 🟢 Resolved` (`resolved`)
-- If every bucket is empty across all four sources, replace the whole
-  body below the header with one calm line: "Nothing needs you right
-  now."
-- No cards/chips/badges as decoration beyond the table itself — hairline
-  rules between rows, clay reserved for the health-warning lines and
-  link hover states only.
+  - If every bucket is empty for that source, replace its tab body with
+    one calm line: "Nothing needs you here."
+- No cards/chips/badges as decoration beyond the table itself and the
+  tab bar's own selected-state underline — hairline rules between rows,
+  clay reserved for the health-warning lines, the terrain's confirmed
+  dots, link hover states, and the active tab's underline.
 - Mobile: single column, 16px side gutter, no page-wide horizontal
-  scroll; let wide tables scroll horizontally within themselves rather
-  than clipping columns.
+  scroll; the tab bar scrolls horizontally as a row rather than
+  wrapping if it doesn't fit; let wide tables scroll horizontally
+  within themselves rather than clipping columns.
 
 **Build check**: skip the Playwright/screenshot render check on routine
 runs — the data changes every run but the HTML/CSS template doesn't, so
