@@ -1,0 +1,14 @@
+{
+  "name": "vor",
+  "owner": {
+    "name": "Nar Cuenca"
+  },
+  "description": "Vör: unified daily dashboard across GitHub, Gmail, Calendar, and Slack",
+  "plugins": [
+    {
+      "name": "vor",
+      "source": "./",
+      "description": "Unified daily dashboard across GitHub, Gmail, Calendar, and Slack, invoked as /vor"
+    }
+  ]
+}

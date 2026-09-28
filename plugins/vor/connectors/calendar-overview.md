@@ -1,0 +1,56 @@
+---
+description: What's happening today and what's coming up tomorrow
+allowed-tools: mcp__claude_ai_Google_Calendar__list_events
+---
+
+You are giving me a quick readout of my calendar. Do the following:
+
+1. Determine the local timezone (e.g. `date +%Z` or
+   `timedatectl show --property=Timezone`) — needed to bound "today" and
+   "tomorrow" correctly and to interpret event times.
+
+   If the Calendar tool isn't available or the call errors (connector not
+   configured, needs re-auth), this run's `status` is `error`, `error`
+   names the actual problem, skip straight to step 4 with an empty
+   `items` array.
+
+2. Fetch events from today 00:00 through the end of tomorrow (two
+   calendar days) in that timezone:
+   ```
+   startTime: <today 00:00, local tz>
+   endTime: <day after tomorrow 00:00, local tz>
+   timeZone: <local tz>
+   orderBy: startTime
+   pageSize: 50
+   ```
+   Skip anything with `status: "cancelled"`, and skip anything where my
+   own attendee entry (`self: true`) has `responseStatus: "declined"` —
+   those aren't actually happening for me.
+
+3. For each surviving event work out:
+   - `title` → the event's `summary` (or "(no title)" if blank)
+   - `actor` → the organizer (name/email)
+   - `timestamp` → the event's start (`dateTime`, or `date` for an
+     all-day event)
+   - `age_days` → for this connector this means "days until it happens,"
+     not "days overdue": `0` for today, `1` for tomorrow
+   - `summary` → one plain-language sentence: the time range, who's
+     involved, and anything worth noting (all-day, out-of-office, no
+     attendees, etc.)
+   - `label` → `"RSVP needed"` if my own attendee entry (`self: true`)
+     has `responseStatus` of `needsAction` or `tentative`; otherwise a
+     short descriptor of the entry itself (`"Meeting"`, `"Out of
+     office"`, `"Focus time"`, `"All-day"`)
+   - `urgency` → `attention` if `label` is `"RSVP needed"` (I owe a
+     response), otherwise `fyi` — this connector is about awareness, not
+     action, except for pending invites
+
+4. Emit a single fenced ```json code block conforming EXACTLY to the
+   schema at `schema/connector-report.schema.json` (source: `"calendar"`).
+   Include every surviving event from both today and tomorrow in full. Do
+   not deviate from the schema's field names, types, or enum values.
+   Return ONLY this JSON block — no other commentary.
+
+If there's genuinely nothing on the calendar for either day (no error,
+just an open schedule), that's `status: "ok"` with an empty `items`
+array, not an error.
