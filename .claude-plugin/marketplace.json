@@ -1,13 +1,13 @@
 {
-  "name": "vor",
+  "name": "claude-code-plugins",
   "owner": {
     "name": "Nar Cuenca"
   },
-  "description": "Vör: unified daily dashboard across GitHub, Gmail, Calendar, and Slack",
+  "description": "Nar's personal Claude Code plugins",
   "plugins": [
     {
       "name": "vor",
-      "source": "./",
+      "source": "./plugins/vor",
       "description": "Unified daily dashboard across GitHub, Gmail, Calendar, and Slack, invoked as /vor"
     }
   ]

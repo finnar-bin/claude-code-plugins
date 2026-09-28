@@ -104,14 +104,14 @@ lives, not the caller's cwd). Everything else system sans
   scroll; let wide tables scroll horizontally within themselves rather
   than clipping columns.
 
-**Build check**: if Playwright + a Chromium build are already available
-in this environment (check before installing anything), render the file
-and glance at a screenshot before publishing, same as the `morning`
-skill's render check. If they're not already available, skip installing
-them for this — unlike a one-off brief, this command is meant to be run
-repeatedly, so paying a one-time ~165MB browser download on every routine
-run isn't worth it. The layout here is plain HTML/CSS with no scripted
-behavior, so the risk of a silent breakage is low.
+**Build check**: skip the Playwright/screenshot render check on routine
+runs — the data changes every run but the HTML/CSS template doesn't, so
+re-rendering and screenshotting each time verifies nothing new and just
+burns time. Only do a Playwright render check on a run where you've
+actually edited this skill's template/CSS/layout logic (i.e. you're
+changing how the page is built, not just refreshing its data), and even
+then only if Playwright + Chromium are already available in this
+environment — don't install them for this.
 
 If a source is unreachable in a given run for reasons outside its own
 error handling (e.g. a subagent itself failed to spawn or timed out),
