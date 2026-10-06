@@ -74,8 +74,11 @@ After you've reviewed the diff in the worktree:
 
 It shows what will be committed, asks before committing, drafts a PR body from
 the handoff (acceptance checklist, test result, unfixed warnings), asks again
-before pushing, then opens the PR. If a `pr-creator` agent exists in your
-session it hands the PR to that; otherwise it uses `gh`. It never force-pushes.
+before pushing, then opens the PR. It copies the issue's labels onto the PR
+(skipping any the repo lacks), assigns `@me`, and matches the repo's title
+convention. If a `pr-creator` agent exists in your session it hands the PR to
+that, telling it which worktree to use, and then checks the labels came
+through; otherwise it uses `gh`. It never force-pushes.
 
 ## Safety model and limits
 

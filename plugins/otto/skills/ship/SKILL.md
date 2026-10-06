@@ -60,27 +60,48 @@ commit. If a hook fails, fix nothing silently: report it and stop.
 
 ## 4. Gate 2: push and PR
 
-Draft the PR:
+First collect what the PR should carry over from the issue, because a PR made
+from scratch otherwise loses it:
 
-- **Title**: the commit subject, or the issue title in the repo's convention.
-- **Body**: what changed and why (the handoff summary); a checklist of the
-  acceptance criteria, ticked where QA marked them `satisfied`, with
-  `inconclusive` ones left unticked and labeled; the test that was added or
-  run (type, file, result); a "Reviewer notes" section listing Otto's unfixed
-  review warnings and the UI check notes if any; `Closes #<N>`. Say the change
-  came from an automated triage, implement, QA loop and was reviewed locally.
-  End with the PR attribution line from the session's instructions if there is
-  one.
+- **Labels**: `gh issue view <N> --json labels`. Copy every label onto the PR.
+  Check each exists on the repo (`gh label list --limit 200`) and skip, but
+  tell the user about, any that don't, since `gh pr create` fails on an
+  unknown label.
+- **Assignee**: `@me`, unless the repo's recent PRs show another convention.
+- **Title convention**: look at `gh pr list --state merged --limit 10 --json
+  title` and match its pattern (for example `Subapp: Short description`).
 
-Show repo, base branch, head branch, title, and body, then ask the user to
+Draft the PR with those:
+
+- **Title**: in the repo's convention.
+- **Body**: `Resolves #<N>`; what changed and why (the handoff summary); a
+  checklist of the acceptance criteria, ticked where QA marked them
+  `satisfied`, with `inconclusive` ones left unticked and labeled; the test
+  that was added or run (type, file, result); a "Reviewer notes" section
+  listing Otto's unfixed review warnings and the UI check notes if any. Say
+  the change came from an automated triage, implement, QA loop and was
+  reviewed locally.
+- **Footer**: add a generated-by line only if the session's instructions ask
+  for one and the repo's PR conventions (or a `pr-creator` agent) don't forbid
+  it. When they conflict, the user's own convention wins.
+
+Show repo, base, head, title, labels, assignee, and body, then ask the user to
 approve, edit, or stop. Only on approval:
 
 1. `git -C <worktree> push -u origin <branch>`.
-2. Create the PR. If a `pr-creator` agent is available in this session (it is
-   listed in the Agent tool's types), delegate to it, passing the branch, base,
-   title, and body so it follows the team's format and handles screenshots.
-   Otherwise run `gh pr create --base <base> --head <branch> --title <title>
-   --body-file <tmpfile>` from a temp file for the body.
+2. Create the PR, using the `pr-creator` agent only if it is listed in the
+   Agent tool's types:
+   - **With `pr-creator`**: it derives its own title, body, labels, and
+     screenshots and ignores any it is given, so don't pass them. It also runs
+     git from the shell's directory, which resets to the main checkout, so tell
+     it where the work is: the branch is `<branch>`, checked out in the
+     worktree `<path>`, and every command must start with `cd "<path>" &&`.
+     Afterwards, check the PR it created (`gh pr view --json labels,assignees,title`)
+     and tell the user if labels or the assignee are missing; add them with
+     `gh pr edit` if the user agrees.
+   - **Without it**: run `gh pr create --base <base> --head <branch> --title
+     <title> --assignee <assignee> --label <label> ... --body-file <tmpfile>`,
+     one `--label` per label from the issue, with the body from a temp file.
 
 ## 5. Wrap up
 
