@@ -9,7 +9,7 @@ Otto leaves its work uncommitted in `.claude/worktrees/otto-<N>` so a human can
 review it first. This skill is the step after that review: commit, push, and
 open the PR. It publishes nothing without two explicit approvals.
 
-Argument: the issue number `<N>`. If none was given, ask for it.
+Argument: the issue number `<N>`. It is optional; work it out if missing (step 1).
 
 ## Ground rules
 
@@ -23,6 +23,18 @@ Argument: the issue number `<N>`. If none was given, ask for it.
 
 ## 1. Find the work
 
+0. **Determine `<N>`** if it wasn't given, in this order, and always say which
+   source you used:
+   1. The current branch, if it looks like `<type>/<N>-<slug>`
+      (`git rev-parse --abbrev-ref HEAD`).
+   2. Otto's own leftovers: handoff files in `<git-common-dir>/otto/*.json` and
+      worktrees named `otto-<N>` in `git worktree list`. If exactly one issue
+      appears, use it. If several, list them (issue number, branch, whether it
+      has uncommitted changes) and ask the user which one with AskUserQuestion.
+   3. Otherwise ask the user for the number.
+   Never guess between several candidates, and never continue without an
+   issue number: labels, the `Resolves #<N>` line, and the handoff file all
+   depend on it.
 1. Locate the main checkout (`git rev-parse --show-toplevel`) and its shared
    git dir (`git rev-parse --path-format=absolute --git-common-dir`).
 2. Read the handoff file `<git-common-dir>/otto/<N>.json` if it exists. It has

@@ -69,7 +69,7 @@ which wins over discovery.
 After you've reviewed the diff in the worktree:
 
 ```
-/otto:ship <issue number>
+/otto:ship [issue number]   # inferred from the branch or Otto's leftovers if omitted
 ```
 
 It shows what will be committed, asks before committing, drafts a PR body from

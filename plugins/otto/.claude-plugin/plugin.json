@@ -1,7 +1,7 @@
 {
   "name": "otto",
   "description": "Take a GitHub issue from triage through implementation, tests, and a capped QA/review loop, invoked as a Workflow",
-  "version": "0.4.1",
+  "version": "0.4.2",
   "author": {
     "name": "Nar Cuenca"
   }
