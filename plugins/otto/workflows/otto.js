@@ -421,7 +421,7 @@ ${code.branch}. ${cause} found problems — address them now.
 
 # Previous summary
 ${code.summary}
-${worktreePreamble()}${staticSection}${testSection}${qaReviewSection}
+${worktreePreamble()}${staticSection}${testSection}${qaReviewSection}${historyBlock()}
 # What to do
 You are in the worktree on branch ${code.branch} (do NOT create a new
 branch or switch branches). Address every
@@ -613,6 +613,43 @@ applicable and a one-to-three-sentence explanation.
 `
 }
 
+// Memory across fix rounds. Without it each fix agent only sees the latest
+// findings and can flip-flop between two "fixes". A finding that survives a
+// round where a fix was attempted for it is stuck, so stop early and hand it
+// to a human instead of spending the remaining rounds.
+const history = []
+const norm = (t) => String(t || '').toLowerCase().replace(/[^a-z0-9 ]+/g, ' ').trim().split(/\s+/).slice(0, 10).join(' ')
+
+function findingKeys({ staticChecks, qa, review }) {
+  const keys = []
+  for (const f of staticChecks?.failures || []) keys.push({ key: `static|${f.check}|${norm(f.output)}`, text: `[static: ${f.check}] ${String(f.output).slice(0, 160)}` })
+  for (const c of qa?.criteria || []) if (c.status === 'not_met') keys.push({ key: `qa|${norm(c.criterion)}`, text: `[QA not met] ${c.criterion}${c.note ? ` — ${c.note}` : ''}` })
+  for (const b of review?.blockers || []) keys.push({ key: `review|${b.file || ''}|${norm(b.summary)}`, text: `[review blocker] ${b.file ? `${b.file}${b.line ? ':' + b.line : ''}: ` : ''}${b.summary}` })
+  return keys
+}
+
+// Records this round's findings; returns the ones already reported in an
+// earlier round (i.e. a fix was attempted and they are still there).
+function recordRound(label, findings) {
+  const seen = new Set(history.flatMap((h) => h.keys.map((k) => k.key)))
+  const repeats = findings.filter((f) => seen.has(f.key))
+  history.push({ label, keys: findings })
+  return repeats
+}
+
+function historyBlock() {
+  if (!history.length) return ''
+  const lines = history.map((h) => `- ${h.label}:\n${h.keys.map((k) => `    ${k.text}`).join('\n') || '    (no findings)'}`).join('\n')
+  return `
+# Already attempted — earlier rounds
+Fixes were already tried for these. Do not undo an earlier fix just to satisfy
+a newer finding without checking they don't conflict, and don't repeat an
+approach that evidently didn't work. If you believe a finding is wrong or two
+findings contradict each other, say so in your summary instead of flip-flopping.
+${lines}
+`
+}
+
 // Error results carry the branch and last known summary so the human knows
 // what is sitting uncommitted in the working tree.
 let lastCode = null
@@ -720,6 +757,12 @@ while (round < maxRounds) {
     const failed = (staticChecks.failures || []).map((f) => f.check).join(', ') || 'unspecified'
     log(`Round ${round}/${maxRounds}: static checks failed (${failed}) — fixing before spending a QA/review pass.`)
 
+    const staticRepeats = recordRound(`Round ${round} (static checks)`, findingKeys({ staticChecks }))
+    if (staticRepeats.length) {
+      log(`Round ${round}: ${staticRepeats.length} static failure(s) survived an earlier fix attempt — stopping instead of looping.`)
+      return { status: 'needs_human', issueNumber, branch: code.branch, worktreePath, stage: 'repeat-findings', repeated: staticRepeats.map((f) => f.text), staticChecks }
+    }
+
     if (round >= maxRounds) {
       break
     }
@@ -755,6 +798,11 @@ while (round < maxRounds) {
   if (qaOk && reviewOk) {
     satisfied = true
     break
+  }
+  const verifyRepeats = recordRound(`Round ${round} (QA/review)`, findingKeys({ qa, review }))
+  if (verifyRepeats.length) {
+    log(`Round ${round}: ${verifyRepeats.length} finding(s) survived an earlier fix attempt — stopping instead of looping.`)
+    return { status: 'needs_human', issueNumber, branch: code.branch, worktreePath, stage: 'repeat-findings', repeated: verifyRepeats.map((f) => f.text), qa, review }
   }
   if (round >= maxRounds) {
     break
