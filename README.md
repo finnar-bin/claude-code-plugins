@@ -24,6 +24,7 @@ Then install whichever plugin you want:
 ```
 /plugin install vor@finnar-bin-plugins
 /plugin install otto@finnar-bin-plugins
+/plugin install retro@finnar-bin-plugins
 ```
 
 To pick up updates later, either enable auto-update for the marketplace
@@ -70,3 +71,12 @@ Requires the `Workflow` and `Agent` tools, the `gh` CLI (authenticated),
 and a clean git working tree in a repo with the target issue. See
 [`plugins/otto/workflows/otto.js`](plugins/otto/workflows/otto.js) for
 details.
+
+### retro
+
+Weekly retro over your Claude Code sessions across every project, invoked
+as `/retro:weekly`. Measures pushback, rework, and how well each skill and
+agent performed, keeps a durable history in `~/.claude/retros/` (so trends
+outlive transcript cleanup), and writes a markdown report, plus an artifact
+when the Artifact tool is available. Needs Node 18+. See
+[`plugins/retro/README.md`](plugins/retro/README.md) for details.

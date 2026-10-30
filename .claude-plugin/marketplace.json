@@ -14,6 +14,11 @@
       "name": "otto",
       "source": "./plugins/otto",
       "description": "Take a GitHub issue from triage through implementation, tests, and a capped QA/review loop, invoked as a Workflow"
+    },
+    {
+      "name": "retro",
+      "source": "./plugins/retro",
+      "description": "Weekly retro over your Claude Code sessions: pushback, rework, and skill/agent performance, invoked as /retro:weekly"
     }
   ]
 }

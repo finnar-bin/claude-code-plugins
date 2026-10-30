@@ -1,0 +1,8 @@
+{
+  "name": "retro",
+  "description": "Weekly retro over your Claude Code sessions: pushback, rework, and how well each skill or agent performed, invoked as /retro:weekly",
+  "version": "0.1.0",
+  "author": {
+    "name": "Nar Cuenca"
+  }
+}
