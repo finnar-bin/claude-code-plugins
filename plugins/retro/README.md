@@ -16,7 +16,10 @@ suggestions (a CLAUDE.md rule, a skill tweak, a permission change).
    and so on) and grade each session's outcome.
 3. Labels and metrics are appended to a small history in `<config>/retros/`, so
    trends survive after Claude Code deletes old transcripts.
-4. The report is written as markdown, and published as an artifact (updated in
+4. The report includes a closer look at standout sessions: up to 5 with the
+   most friction and up to 5 clean ones (at least 3 follow-ups, no pushback,
+   interrupts, or rejections).
+5. The report is written as markdown, and published as an artifact (updated in
    place each run) when the Artifact tool is available.
 
 ## Files

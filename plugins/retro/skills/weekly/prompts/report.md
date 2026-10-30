@@ -18,7 +18,17 @@ anyone.
 5. **Outcomes**: `outcomes` distribution.
 6. **Trend**: `trend`, last up to 8 weeks.
 7. **Examples**: a few from `examples`, paraphrased as given.
-8. **Actions**: 3 to 5 concrete suggestions tied to the data, e.g. a recurring
+8. **Standout sessions**: from `standouts`. Open with a coverage line, "showing
+   N of M active sessions". Then two lists. "Most friction" (`friction`, up to 5)
+   and "Clean sessions" (`clean`, up to 5, only those with real back-and-forth).
+   For each session show title (fall back to the repo and date), repo, date,
+   follow-ups, pushback count and rate, any interrupts or rejections, outcome,
+   and its `summary` (fall back to `note` when `summary` is null, which is true
+   for sessions classified before summaries existed). Add `pushback_examples` for
+   friction sessions. For clean ones, say what likely made them work (skills or
+   agents used, size and shape of the task), without over-claiming. If a list is
+   empty, say so in one line.
+9. **Actions**: 3 to 5 concrete suggestions tied to the data, e.g. a recurring
    `convention_violation` becomes a CLAUDE.md rule, repeated `missed_requirement`
    after a skill suggests tightening that skill's prompt, high denials suggests
    adjusting permission rules. Don't pad: fewer is fine if the data is thin.
