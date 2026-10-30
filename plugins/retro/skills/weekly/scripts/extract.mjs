@@ -8,7 +8,8 @@
 //   ingest <file.json>      store classifier output (pushback labels, outcomes)
 //   report-data [--since 7d] [--until DATE]   aggregate history as JSON on stdout
 //
-// Options: --config-dir DIR (default $CLAUDE_CONFIG_DIR or ~/.claude), --out-dir DIR, --all
+// Options: --config-dir DIR (default $CLAUDE_CONFIG_DIR or ~/.claude), --out-dir DIR, --all,
+//          --regrade (extract only: re-grade outcomes and summaries for sessions already graded)
 
 import fs from "node:fs";
 import os from "node:os";
@@ -27,6 +28,10 @@ const CATEGORIES = [
   "other_correction",
 ];
 const OUTCOMES = ["done_first_try", "done_after_corrections", "abandoned", "unclear"];
+// standout sessions shown in the report
+const TOP_FRICTION = 5;
+const TOP_CLEAN = 5;
+const CLEAN_MIN_FOLLOWUPS = 3; // a clean session only counts if it had real back-and-forth
 
 // ---------- helpers ----------
 
@@ -383,6 +388,7 @@ function analyze(t) {
     skipped_records: st.bad,
     outcome: null,
     outcome_note: null,
+    summary: null,
     extractor_version: EXTRACTOR_VERSION,
   };
   const digest = {
@@ -465,7 +471,10 @@ function extract(o) {
   const found = findTranscripts(p.configDir).filter((t) => t.mtime >= since);
 
   const stored = new Map(readJsonl(p.sessions).records.map((r) => [r.session, r]));
-  const classified = new Set(readJsonl(p.pushback).records.map((r) => `${r.session}#${r.turn}`));
+  const labeled = readJsonl(p.pushback).records;
+  const classified = new Set(labeled.map((r) => `${r.session}#${r.turn}`));
+  const pbCount = new Map();
+  for (const r of labeled) if (r.category !== "not_pushback") pbCount.set(r.session, (pbCount.get(r.session) || 0) + 1);
   const turns = [];
   const digests = [];
   let skipped = 0;
@@ -475,15 +484,19 @@ function extract(o) {
     skipped += row.skipped_records;
     const old = stored.get(row.session);
     // keep an existing grade only if the session hasn't moved since it was graded
-    if (old && old.end === row.end) {
+    if (old && old.end === row.end && !o.regrade) {
       row.outcome = old.outcome;
       row.outcome_note = old.outcome_note;
+      row.summary = old.summary ?? null;
     }
     stored.set(row.session, row);
     for (const x of tt)
       if (x.i >= 1 && !classified.has(`${row.session}#${x.i}`))
         turns.push({ session: row.session, repo: row.repo, turn: x.i, text: x.text, prev_assistant: x.prev, ctx: x.ctx });
-    if (row.human_turns > 0 && !row.outcome) digests.push(digest);
+    if (row.human_turns > 0 && !row.outcome) {
+      digest.pushback = pbCount.get(row.session) || 0;
+      digests.push(digest);
+    }
   }
 
   const rows = [...stored.values()].sort((a, b) => a.start.localeCompare(b.start));
@@ -576,6 +589,7 @@ function ingest(o) {
     }
     s.outcome = x.outcome;
     s.outcome_note = redact(x.note, 200);
+    s.summary = x.summary ? redact(x.summary, 300) : null;
     graded++;
   }
   writeJsonl(p.pushback, [...rows.values()]);
@@ -619,19 +633,33 @@ function aggregate(sess, pbBySession) {
   return a;
 }
 
+// a skill can show up bare ("google-workspace") and namespaced ("anthropic-skills:google-workspace");
+// fold the bare form into the namespaced one when both exist
+function skillCanon(sess, pbBySession) {
+  const all = new Set();
+  for (const s of sess) {
+    Object.keys(s.skills).forEach((n) => all.add(n));
+    Object.keys(s.commands).forEach((n) => all.add(n));
+    for (const r of pbBySession.get(s.session) || []) (r.ctx?.skills || []).forEach((n) => all.add(n));
+  }
+  const namespaced = [...all].filter((n) => n.includes(":"));
+  return (n) => (n.includes(":") ? n : namespaced.find((x) => x.endsWith(`:${n}`)) || n);
+}
+
 function attribution(sess, pbBySession, field) {
   const names = new Map();
   const slot = (n) => {
     if (!names.has(n)) names.set(n, { name: n, sessions: 0, turns_after: 0, pushback_after: 0 });
     return names.get(n);
   };
+  const canon = field === "skills" ? skillCanon(sess, pbBySession) : (n) => n;
   for (const s of sess) {
     // built-ins (/cd, /compact) aren't skills: keep a command only if it's namespaced or also seen as a skill
     const cmds = Object.keys(s.commands).filter((c) => c.includes(":") || c in s.skills);
     const used = field === "skills" ? [...Object.keys(s.skills), ...cmds] : Object.keys(s.subagents);
-    for (const n of new Set(used)) slot(n).sessions++;
+    for (const n of new Set(used.map(canon))) slot(n).sessions++;
     for (const r of pbBySession.get(s.session) || []) {
-      for (const n of r.ctx?.[field] || []) {
+      for (const n of new Set((r.ctx?.[field] || []).map(canon))) {
         const x = slot(n);
         x.turns_after++;
         if (r.category !== "not_pushback") x.pushback_after++;
@@ -641,6 +669,60 @@ function attribution(sess, pbBySession, field) {
   return [...names.values()]
     .map((x) => ({ ...x, pushback_rate: x.turns_after ? +(x.pushback_after / x.turns_after).toFixed(3) : null }))
     .sort((a, b) => b.sessions - a.sessions);
+}
+
+// The outcome grader runs alongside pushback labeling, so it can't always see the labels.
+// Don't let it call a session with several corrections a first-try success.
+const FIRST_TRY_MAX_PUSHBACK = 2;
+function effectiveOutcome(s, pbBySession) {
+  if (s.outcome !== "done_first_try") return s.outcome ?? null;
+  const hits = (pbBySession.get(s.session) || []).filter((r) => r.category !== "not_pushback").length;
+  return hits > FIRST_TRY_MAX_PUSHBACK ? "done_after_corrections" : s.outcome;
+}
+
+// the sessions worth a closer look: most friction, and clean ones with real back-and-forth
+function standouts(cur, pbBySession) {
+  const active = cur.filter((s) => s.human_turns > 0);
+  const detail = (s) => {
+    const rows = pbBySession.get(s.session) || [];
+    const hits = rows.filter((r) => r.category !== "not_pushback");
+    const cats = {};
+    for (const r of hits) bump(cats, r.category);
+    return {
+      session: s.session.slice(0, 8),
+      title: s.title,
+      repo: s.repo,
+      date: s.start.slice(0, 10),
+      followups: s.followups,
+      pushback: hits.length,
+      pushback_rate: s.followups ? +(hits.length / s.followups).toFixed(3) : null,
+      by_category: cats,
+      interrupts: s.interrupts,
+      denials: s.denials,
+      tool_errors: s.tool_errors,
+      files_reedited: s.files_reedited,
+      outcome: effectiveOutcome(s, pbBySession),
+      note: s.outcome_note ?? null,
+      summary: s.summary ?? null,
+      skills: Object.keys(s.skills),
+      agents: Object.keys(s.subagents),
+      cost_usd: s.cost_usd,
+      pushback_examples: hits.slice(0, 3).map((r) => r.summary),
+      _hits: hits.length,
+      _unclassified: Math.max(0, s.followups - rows.length),
+    };
+  };
+  const all = active.map(detail);
+  const strip = ({ _hits, _unclassified, ...rest }) => rest;
+  const friction = all
+    .filter((d) => d._hits || d.interrupts || d.denials)
+    .sort((a, b) => b._hits - a._hits || b.interrupts + b.denials - (a.interrupts + a.denials) || b.followups - a.followups)
+    .slice(0, TOP_FRICTION);
+  const clean = all
+    .filter((d) => !d._hits && !d.interrupts && !d.denials && !d._unclassified && d.followups >= CLEAN_MIN_FOLLOWUPS)
+    .sort((a, b) => b.followups - a.followups)
+    .slice(0, TOP_CLEAN);
+  return { active_sessions: active.length, shown: friction.length + clean.length, friction: friction.map(strip), clean: clean.map(strip) };
 }
 
 function reportData(o) {
@@ -677,13 +759,28 @@ function reportData(o) {
     });
 
   const outcomes = {};
-  for (const s of cur) bump(outcomes, s.outcome || "ungraded");
+  for (const s of cur) bump(outcomes, effectiveOutcome(s, pbBySession) || "ungraded");
 
+  // examples: round-robin across categories (most common first), preferring sessions not yet shown
   const titles = new Map(cur.map((s) => [s.session, s.title]));
-  const examples = cur
-    .flatMap((s) => (pbBySession.get(s.session) || []).filter((r) => r.category !== "not_pushback"))
-    .slice(0, 12)
-    .map((r) => ({ repo: r.repo, category: r.category, summary: r.summary, session_title: titles.get(r.session) || null, ctx: r.ctx }));
+  const byCat = {};
+  for (const s of cur)
+    for (const r of pbBySession.get(s.session) || []) if (r.category !== "not_pushback") (byCat[r.category] ||= []).push(r);
+  const cats = Object.keys(byCat).sort((a, b) => byCat[b].length - byCat[a].length);
+  const shown = {};
+  const examples = [];
+  while (examples.length < 12 && cats.some((c) => byCat[c].length)) {
+    for (const c of cats) {
+      if (examples.length >= 12 || !byCat[c].length) continue;
+      let best = 0;
+      byCat[c].forEach((r, i) => {
+        if ((shown[r.session] || 0) < (shown[byCat[c][best].session] || 0)) best = i;
+      });
+      const [r] = byCat[c].splice(best, 1);
+      shown[r.session] = (shown[r.session] || 0) + 1;
+      examples.push({ repo: r.repo, category: r.category, summary: r.summary, session_title: titles.get(r.session) || null, ctx: r.ctx });
+    }
+  }
 
   console.log(
     JSON.stringify(
@@ -696,6 +793,7 @@ function reportData(o) {
         agents: attribution(cur, pbBySession, "agents"),
         outcomes,
         examples,
+        standouts: standouts(cur, pbBySession),
         trend,
       },
       null,

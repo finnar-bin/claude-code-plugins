@@ -37,14 +37,20 @@ Judging rules:
 ## Session outcomes (one per entry in `sessions`)
 
 Use the digest fields (title, first prompt, last assistant message, counts).
-Pick one `outcome`:
+`pushback` is how many follow-ups are already labeled as pushback; it can be 0
+simply because labeling is happening in the same run. When it is 3 or more,
+don't choose `done_first_try`. Pick one `outcome`:
 
 - `done_first_try`: the task appears finished with no real corrections.
 - `done_after_corrections`: finished, but only after meaningful pushback.
 - `abandoned`: the user gave up, switched approach entirely, or it ended mid-task.
 - `unclear`: not enough signal. Use this freely.
 
-Add a `note` of at most 15 words, paraphrased.
+Add a `note` of at most 15 words, paraphrased. Also add a `summary`: one or
+two sentences (at most 40 words) on what the session set out to do and what
+went well or wrong. Paraphrase; no names, secrets, URLs, or code. The report
+uses it for its closer look at standout sessions, and it can't be rebuilt once
+the transcript is deleted, so make it specific.
 
 ## Output
 
@@ -57,7 +63,7 @@ Write a single JSON file (path given by the caller) and nothing else:
     { "session": "<id>", "turn": 3, "category": "missed_requirement", "summary": "ignored the request to keep comments short" }
   ],
   "outcomes": [
-    { "session": "<id>", "outcome": "done_after_corrections", "note": "needed two rounds on error handling" }
+    { "session": "<id>", "outcome": "done_after_corrections", "note": "needed two rounds on error handling", "summary": "Added retry handling to an upload helper. Took two rounds because the first pass swallowed errors and skipped the requested toast." }
   ]
 }
 ```
